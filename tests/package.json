@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "test:db": "node database.mjs",
+    "test:ui": "node ui.cjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-pgvector": "0.0.9",
+    "playwright": "1.62.1"
+  }
+}
