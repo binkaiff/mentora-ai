@@ -1,6 +1,25 @@
-import {createClient} from '@supabase/supabase-js';
-export const configured=!!import.meta.env.VITE_SUPABASE_URL&&!import.meta.env.VITE_SUPABASE_URL.includes('YOUR_');
-export const supabase=configured?createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY):null;
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+
+export const configured = Boolean(
+  supabaseUrl &&
+  supabaseKey &&
+  !supabaseUrl.includes('YOUR_') &&
+  !supabaseKey.includes('YOUR_')
+);
+
+export const supabase = configured
+  ? createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'implicit',
+      },
+    })
+  : null;
 export const API=(import.meta.env.VITE_API_URL||'http://localhost:8000').replace(/\/$/,'');
 export async function api(path:string,method='GET',body?:unknown):Promise<any>{
  const session=await supabase?.auth.getSession();
