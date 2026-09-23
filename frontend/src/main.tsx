@@ -36,7 +36,83 @@ function App(){
  const live=!!session&&!demo;const aiLanguage=({en:'English',ta:'Tamil',si:'Sinhala'} as Record<string,string>)[i18n.language]||'English';
  const notes=useQuery({queryKey:['notes',session?.user.id],queryFn:()=>api('/notes'),enabled:live&&ready});
  const notifications=useQuery({queryKey:['notifications',session?.user.id],queryFn:()=>api('/notifications'),enabled:live&&ready,refetchInterval:60000});
- useEffect(()=>{if(!supabase)return;supabase.auth.getSession().then(({data,error})=>{if(error)setError(error.message);setSession(data.session);setAuthReady(true)});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setSession(s);setAuthReady(true)});return()=>subscription.unsubscribe()},[]);
+ useEffect(() => {
+  const client = supabase;
+
+  if (!client) {
+    setAuthReady(true);
+    return;
+  }
+
+  let mounted = true;
+
+  const initAuth = async () => {
+    try {
+      const hash = new URLSearchParams(
+        window.location.hash.replace(/^#/, '')
+      );
+
+      const accessToken = hash.get('access_token');
+      const refreshToken = hash.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { data, error } = await client.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (error) throw error;
+
+        if (mounted) {
+          setSession(data.session);
+          setAuthReady(true);
+        }
+
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.search
+        );
+
+        return;
+      }
+
+      const { data, error } = await client.auth.getSession();
+
+      if (error) throw error;
+
+      if (mounted) {
+        setSession(data.session);
+        setAuthReady(true);
+      }
+    } catch (err) {
+      if (mounted) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Authentication failed.'
+        );
+        setAuthReady(true);
+      }
+    }
+  };
+
+  void initAuth();
+
+  const {
+    data: { subscription },
+  } = client.auth.onAuthStateChange((_event, session) => {
+    if (mounted) {
+      setSession(session);
+      setAuthReady(true);
+    }
+  });
+
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
  useEffect(()=>{let cancelled=false;setReady(false);setError('');if(demo){try{setData(JSON.parse(localStorage.getItem('mentora-preview')||'null')||sample())}catch{setData(sample())}setVersion(0);setReady(true);return}if(session){api('/workspace').then(r=>{if(!cancelled){setData({...blank,...r.data});setVersion(r.version);setReady(true)}}).catch(e=>setError(e.message))}return()=>{cancelled=true}},[session?.user.id,demo]);
  useEffect(()=>{document.documentElement.lang=i18n.language;localStorage.setItem('mentora-language',i18n.language)},[i18n.language]);
  useEffect(()=>{if(notes.error)setError(notes.error.message)},[notes.error]);
